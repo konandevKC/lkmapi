@@ -18,7 +18,7 @@ return new class extends Migration
     $table->string('telephone')->unique(); // Numéro de téléphone pour l'authentification
     $table->string('email')->unique();
     $table->string('code_proprio')->nullable(); // Reçu du proprio
-    $table->foreignId('proprietaire_id')->nullable()->constrained()->onDelete('cascade'); // Correction ici : nullable
+    $table->foreignId('proprietaire_id')->nullable()->constrained()->onDelete('cascade');
     $table->timestamp('email_verified_at')->nullable();
     $table->rememberToken();
     $table->timestamps();

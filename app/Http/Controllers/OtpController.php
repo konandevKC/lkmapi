@@ -11,6 +11,8 @@ class OtpController extends Controller
     {
         $request->validate(['phone' => 'required']);
         $otp = rand(1000, 9999);
+        // Enregistrer l'OTP dans la base de données
+        
         OtpCode::updateOrCreate(
             ['phone' => $request->phone],
             ['code' => $otp, 'expires_at' => now()->addMinutes(5)]

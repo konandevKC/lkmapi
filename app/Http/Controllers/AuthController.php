@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Proprietaire;
+use App\Models\Locataire;
+use App\Models\Kyc;
 
 class AuthController extends Controller
 {
@@ -129,4 +132,93 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    /**
+     * Récupère les informations de l'utilisateur connecté
+     */
+    public function user(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Utilisateur non authentifié'], 401);
+        }
+        // ajouter les information du qyc si c'est un propriétaire
+        if ($user->role === 'proprietaire') {
+            $proprio = \App\Models\Proprietaire::where('email', $user->email)->first();
+            if ($proprio) {
+                $user->code_proprio = $proprio->code_proprio;
+                $user->proprietaire_id = $proprio->id;
+
+            }
+            $kyc = \App\Models\Kyc::where('user_id', $user->id)->first();
+            if ($kyc) {
+                $user->kyc_status = $kyc->status;
+                $user->kyc_comment = $kyc->comment;
+            } else {
+                $user->kyc_status = 'non soumis';
+                $user->kyc_comment = null; 
+            }
+        } else {
+            $user->code_proprio = null;
+            $user->proprietaire_id = null;
+            $user->kyc_status = null;
+            $user->kyc_comment = null;
+        }
+        return response()->json($user);
+    }
+
+    /**
+     * suprimer le compte de l'utilisateur connecté
+     */
+  public function deleteAccount(Request $request)
+{
+    $user = $request->user(); // ou Auth::user();
+
+    if (!$user) {
+        return response()->json(['error' => 'Utilisateur non authentifié'], 401);
+    }
+
+    try {
+        // Supprimer le KYC lié à l'utilisateur
+        Kyc::where('user_id', $user->id)->delete();
+
+        // Supprimer le propriétaire lié
+        Proprietaire::where('email', $user->email)->delete();
+
+        // Supprimer le locataire lié
+        Locataire::where('email', $user->email)->delete();
+
+        // Supprimer l'utilisateur lui-même
+        $user->delete();
+
+        return response()->json(['message' => 'Compte supprimé avec succès'], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Une erreur est survenue lors de la suppression du compte.',
+            'details' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+     
+    /** update user all */
+    public function update(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Utilisateur non authentifié'], 401);
+        }
+
+        $request->validate([
+            'nom' => 'sometimes|required|string|max:255',
+            'prenom' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:users,email,' . $user->id,
+            'phone' => 'sometimes|required|unique:users,phone,' . $user->id,
+        ]);
+
+        $user->update($request->only('nom', 'prenom', 'email', 'phone'));
+
+        return response()->json(['message' => 'Informations mises à jour avec succès', 'user' => $user]);
+    }
+
 } 

@@ -39,13 +39,6 @@ class LocataireController extends Controller
         //
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
 
     /**
      * Lier un locataire à un propriétaire via le code_proprio
@@ -87,6 +80,46 @@ class LocataireController extends Controller
     }
 
     /**
+     * Récupère le propriétaire lié au locataire connecté
+     */
+    public function getLinkedProprietaire(Request $request)
+{
+    $user = $request->user();
+
+    if (!$user || $user->role !== 'locataire') {
+        return response()->json(['error' => 'Seul un locataire authentifié peut effectuer cette opération'], 403);
+    }
+
+    // Récupérer le locataire à partir de l'email de l'utilisateur connecté
+    $locataire = \App\Models\Locataire::where('email', $user->email)->first();
+    dd($locataire);
+
+    if (!$locataire || !$locataire->proprietaire_id) {
+        return response()->json(['message' => 'Aucun propriétaire lié à ce locataire'], 404);
+    }
+
+    // Récupérer les infos du propriétaire lié
+    $proprio = \App\Models\Proprietaire::find($locataire->proprietaire_id);
+
+    if (!$proprio) {
+        return response()->json(['error' => 'Propriétaire introuvable'], 404);
+    }
+
+    return response()->json([
+        'message' => 'Propriétaire associé trouvé avec succès',
+        'locataire' => $locataire,
+        'proprietaire' => [
+            'id' => $proprio->id,
+            'nom' => $proprio->nom,
+            'prenom' => $proprio->prenom,
+            'code_proprio' => $proprio->code_proprio,
+           'phone' => $proprio->telephone,
+        ],
+    ]);
+}
+
+
+    /**
      * Associe un locataire (créé si besoin) à un propriétaire
      */
     public static function associateLocataireToProprio($user, $proprio)
@@ -122,5 +155,21 @@ class LocataireController extends Controller
             return response()->json(['error' => 'Aucun locataire trouvé pour cet utilisateur'], 404);
         }
         return response()->json($locataire);
+    }
+    /** Delete locataire connecté  */
+    public function destroy(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || $user->role !== 'locataire') {
+            return response()->json(['error' => 'Seul un locataire authentifié peut supprimer son compte'], 403);
+        }
+        // Supprimer le locataire
+        $locataire = \App\Models\Locataire::where('email', $user->email)->first();
+        if ($locataire) {
+            $locataire->delete();
+        }
+        // Supprimer l'utilisateur
+        $user->delete();
+        return response()->json(['message' => 'Compte de locataire supprimé avec succès']);
     }
 }
